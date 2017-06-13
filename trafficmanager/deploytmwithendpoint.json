@@ -1,0 +1,190 @@
+{
+"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+        "parameters": {
+            "resourcePrefix": {
+            "type": "string",
+            "maxLength": 20,
+            "defaultValue": "prefix",
+            "metadata": {
+            "description": "Internal resource name"
+                }
+            },
+            "trafficManagerNamePrefix": {
+            "type": "string",
+            "maxLength": 20,
+            "defaultValue": "tm01",
+            "metadata": {
+            "description": "Traffice Manager Profile name"
+                }
+            },
+    "relativeName": {
+            "type": "string",
+            "maxLength": 30,
+            "defaultValue": "",
+            "metadata": {
+            "description": "<relativeName>.trafficmanager.net, FQDN must be globally unique."
+                }
+        },
+    "trafficRoutingMethod": {
+            "type": "string",
+            "defaultValue": "Performance",
+            "allowedValues": [
+                "Performance",
+                "Weighted",
+                "Priority",
+                "Geographic"
+            ]
+        },
+    "trafficManagerTTL": {
+        "type": "int",
+        "defaultValue": 300
+	  },
+    "trafficManagerMonitorConfigPort": {
+        "type": "int",
+        "defaultValue": 80
+	  },
+    "trafficManagerMonitorConfigProtocol": {
+        "type": "string",
+         "allowedValues": [
+        "HTTP",
+        "HTTPS"
+        ],
+        "defaultValue": "HTTP"
+	  },
+    "trafficManagerMonitorConfigPath": {
+        "type": "string",
+        "defaultValue": "/"
+	  },
+    "serviceTagDept": {
+      "type": "string",
+      "allowedValues": [
+        "IT Ops",
+        "IT Dev",
+        "Finance",
+        "Marketing",
+        "Management",
+        "Sales",
+        "HR"
+      ],
+      "defaultValue": "IT Ops",
+      "metadata": {
+        "description": "Tag for Department"
+    }
+},
+    "targetResourceName": {
+        "type": "string"
+    },
+    "targetResourceId": {
+        "type": "string"
+    },
+    "targetFQDN": {
+        "type": "string"
+    },
+    "targetWeight": {
+        "type": "int"
+    },
+    "targetPriority": {
+        "type": "int"
+    },
+    "targetResourceLocation": {
+        "type": "string",
+            "allowedValues": [
+                "Australia East",
+                "Australia Southeast",
+                "Southeast Asia",
+                "East Asia",
+                "Japan East",
+                "Japan West",
+                "Korea South",
+                "Korea Central",
+                "West India",
+                "Central India",
+                "South India",
+                "West Europe"
+                ]
+        },
+    "serviceTagEnvironment": {
+      "type": "string",
+      "allowedValues": [
+        "Production",
+        "Staging",
+        "QA",
+        "Development"
+      ],
+      "defaultValue": "Staging",
+      "metadata": {
+        "description": "Tag for Enviroment"
+    }
+  },
+    "serviceTagDataProfile": {
+      "type": "string",
+      "allowedValues": [
+        "Confidential",
+        "Restricted",
+        "Internal",
+        "Public"
+      ],
+      "defaultValue": "Internal",
+      "metadata": {
+        "description": "Tag for sensitivity"
+    }
+  }
+},
+    "variables": {
+        "resourcePrefix": "[parameters('resourcePrefix')]",
+        "trafficManagerName": "[concat(variables('resourcePrefix'),parameters('trafficManagerNamePrefix'))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2015-11-01",
+            "type": "Microsoft.Network/trafficManagerProfiles",
+            "name": "[variables('trafficManagerName')]",
+            "location": "global",
+            "tags": {
+                "Department": "[parameters('serviceTagDept')]",
+                "Owner": "[parameters('serviceTagDept')]",
+                "Cost Centre": "[parameters('serviceTagDept')]",
+                "Environment": "[parameters('serviceTagEnvironment')]",
+                "Data Profile": "[parameters('serviceTagDataProfile')]"
+            },
+            "properties": {
+                "trafficRoutingMethod": "[parameters('trafficRoutingMethod')]",
+                "dnsConfig": {
+                    "relativeName": "[parameters('relativeName')]",
+                    "ttl":  "[int(parameters('trafficManagerTTL'))]"
+                },
+                "monitorConfig": {
+                    "protocol": "[parameters('trafficManagerMonitorConfigProtocol')]",
+                    "port":  "[int(parameters('trafficManagerMonitorConfigPort'))]",
+                    "path": "[parameters('trafficManagerMonitorConfigPath')]"
+                }
+            },
+            "endpoints": [
+                    {
+                        "name": "[parameters('targetResourceName')]",
+                        "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+                        "properties": {
+                            "endpointStatus": "Enabled",
+                            "targetResourceId": "[parameters('targetResourceId')]",
+                            "target": "[parameters('targetFQDN')]",
+                            "weight": "[int(parameters('targetWeight'))]",
+                            "priority": "[int(parameters('targetPriority'))]",
+                            "endpointLocation": "[parameters('targetResourceLocation')]"
+                        }
+                    }
+                ],    
+            "dependsOn": []
+        }
+    ],
+  "outputs": {
+    "deploytmpResult": {
+      "value": "[reference(concat('Microsoft.Network/trafficManagerProfiles/', variables('trafficManagerName')),providers('Microsoft.Network', 'trafficManagerProfiles').apiVersions[0])]",
+      "type" : "object"
+    },
+    "deploytmpIdResult": {
+      "value": "[resourceId('Microsoft.Network/trafficManagerProfiles/', variables('trafficManagerName'))]",
+      "type" : "string"
+    }
+  }
+}
