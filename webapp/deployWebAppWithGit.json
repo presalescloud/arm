@@ -1,0 +1,188 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourcePrefix": {
+        "type": "string",
+        "maxLength": 60,
+        "defaultValue": "prefix",
+        "metadata": {
+        "description": "resource prefix"
+      }
+    },
+        "appservicePlanNamePrefix": {
+            "defaultValue": "waplanf101",
+            "type": "string"
+        },
+        "webappNamePrefix": {
+            "defaultValue": "wa",
+            "type": "string"
+        },
+    "gitRepoUrl": {
+        "defaultValue": "https://github.com",
+        "type": "string"
+        },
+    "gitBranch": {
+        "defaultValue": "prd",
+        "type": "string"
+        },
+    "documentDBEndpoint": {
+        "defaultValue": "doucumentDBEndpoint",
+        "type": "string"
+        },
+    "documentDBPrimaryKey": {
+        "defaultValue": "primarykey",
+        "type": "string"
+        },
+    "serviceTagDept": {
+      "type": "string",
+      "allowedValues": [
+        "IT Ops",
+        "IT Dev",
+        "Finance",
+        "Marketing",
+        "Management",
+        "Sales",
+        "HR"
+      ],
+      "defaultValue": "IT Ops",
+      "metadata": {
+        "description": "Tag for Department"
+    }
+    },
+    "serviceTagEnvironment": {
+      "type": "string",
+      "allowedValues": [
+        "Production",
+        "Staging",
+        "QA",
+        "Development"
+      ],
+      "defaultValue": "Staging",
+      "metadata": {
+        "description": "Tag for Enviroment"
+    }
+  },
+    "serviceTagDataProfile": {
+      "type": "string",
+      "allowedValues": [
+        "Confidential",
+        "Restricted",
+        "Internal",
+        "Public"
+      ],
+      "defaultValue": "Internal",
+      "metadata": {
+        "description": "Tag for sensitivity"
+    }
+  }
+},
+    "variables": {
+        "resourcePrefix": "[parameters('resourcePrefix')]",
+        "appservicePlanName": "[concat(variables('resourcePrefix'), parameters('appservicePlanNamePrefix'))]",
+        "webappName": "[concat(variables('resourcePrefix'), parameters('webappNamePrefix'), uniqueString(resourceGroup().id))]"
+    },
+    "resources": [
+        {
+            "comments": "create the web serive plan for web app",
+            "type": "Microsoft.Web/serverfarms",
+            "sku": {
+                "name": "F1",
+                "tier": "Free",
+                "size": "F1",
+                "family": "F",
+                "capacity": 0
+            },
+            "kind": "app",
+            "name": "[variables('appservicePlanName')]",
+            "apiVersion": "2015-08-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Department": "[parameters('serviceTagDept')]",
+                "Owner": "[parameters('serviceTagDept')]",
+                "Cost Centre": "[parameters('serviceTagDept')]",
+                "Environment": "[parameters('serviceTagEnvironment')]",
+                "Data Profile": "[parameters('serviceTagDataProfile')]"
+                },
+            "properties": {
+                "name": "[variables('appservicePlanName')]",
+                "numberOfWorkers": 0
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "create a web app",
+            "apiVersion": "2015-08-01",
+            "type": "Microsoft.Web/sites",
+            "name": "[variables('webappName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "Department": "[parameters('serviceTagDept')]",
+                "Owner": "[parameters('serviceTagDept')]",
+                "Cost Centre": "[parameters('serviceTagDept')]",
+                "Environment": "[parameters('serviceTagEnvironment')]",
+                "Data Profile": "[parameters('serviceTagDataProfile')]"
+            },
+            "properties": {
+                "serverFarmId": "[reference(resourceId('Microsoft.Web/serverfarms', variables('appservicePlanName')))]",
+                "siteConfig": {
+				    "phpVersion": "off",
+				        "appSettings": [{
+					        "name": "DOCUMENTDB_ENDPOINT",
+					        "value": "[parameters('documentDBEndpoint')]"
+				            },              
+                            {
+					        "name": "DOCUMENTDB_PRIMARY_KEY",
+					        "value": "[parameters('documentDBPrimaryKey')]"
+				            }
+                    ]
+			    }
+            },
+            "resources": [
+            {
+            "comments": "create a connection string",
+            "apiVersion": "2016-03-01",
+            "type": "config",
+            "name": "connectionstrings",
+            "dependsOn": [
+                "[variables('webAppName')]"
+            ],
+            "properties": {
+                "SQLDBConnection": {
+                "value": "your full sql connection string is here better to use keyvault",
+                "type": "SQLAzure"
+                    }
+                }
+                },
+                {
+			"apiVersion": "2015-08-01",
+			"name": "web",
+			"type": "sourcecontrols",
+			"dependsOn": [
+				"[resourceId('Microsoft.Web/Sites', variables('webappName'))]"
+			],
+			"properties": {
+				"RepoUrl": "[parameters('gitRepoUrl')]",
+				"branch": "[parameters('gitBranch')]",
+				"IsManualIntegration": true
+			    }
+		        }
+            ],
+            "dependsOn": []
+        }
+  ],
+  "outputs": {
+    "deployWebAppResult": {
+      "value": "[reference(concat('Microsoft.Web/sites/', variables('webappName')) ,providers('Microsoft.Web', 'sites').apiVersions[0])]",
+      "type" : "object"
+    },
+    "deployWebAppIdResult": {
+      "value": "[resourceId('Microsoft.Web/sites/', variables('webAppName'))]",
+      "type" : "string"
+    },
+    "deployWebAppNameResult": {
+      "value": "[concat(variables('webAppName'))]",
+      "type" : "string"
+    }
+    }
+}
