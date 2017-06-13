@@ -1,0 +1,94 @@
+
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourcePrefix": {
+        "type": "string",
+        "maxLength": 10,
+        "defaultValue": "prefix",
+        "metadata": {
+        "description": "resource prefix with tow letter"
+        }
+        },
+        "appservicePlanNamePrefix": {
+            "defaultValue": "waplanf101",
+            "type": "string"
+        },
+        "webappNamePrefix": {
+            "defaultValue": "wa",
+            "type": "string"
+        },
+        "numberOfWebAppCopy": {
+            "type": "int",
+            "defaultValue": 2
+        }
+},
+
+"variables": {
+  "templateBaseUrl": "https://raw.githubusercontent.com/leej67202/arm/master/",
+  "documentDBTemplateUrl": "[concat(variables('templateBaseUrl'), 'documentdb/deploydocumentdb.json')]",
+  "webappTemplateUrl": "[concat(variables('templateBaseUrl'), 'webapp/deploywebappconfig.json')]",
+  "documentDBParametersUrl": "[concat(variables('templateBaseUrl'), 'solution/documentdbparameters.json')]"
+},
+"resources": [
+    {
+        "apiVersion": "2015-01-01",
+        "name": "deployDoucmentDBTemplate",
+        "type": "Microsoft.Resources/deployments",
+        "properties": {
+            "mode": "Incremental",
+            "templateLink": {
+                "uri": "[variables('documentDBTemplateUrl')]",
+                "contentVersion": "1.0.0.0"
+            },
+            "parametersLink": {
+                "uri": "[variables('documentDBParametersUrl')]",
+                "contentVersion": "1.0.0.0"
+                }
+            }
+        },
+    {
+        "apiVersion": "2015-01-01",
+        "name": "deployWebAppTemplate",
+        "type": "Microsoft.Resources/deployments",
+        "properties": {
+            "mode": "Incremental",
+            "templateLink": {
+                "uri": "[variables('webappTemplateUrl')]",
+                "contentVersion": "1.0.0.0"
+            },
+        "parameters": {
+              "resourcePrefix":{
+                "value": "[parameters('resourcePrefix')]"
+              },
+              "appservicePlanNamePrefix":{
+                "value": "[parameters('appservicePlanNamePrefix')]"
+              },
+              "webappNamePrefix":{
+                "value": "[parameters('webappNamePrefix')]"
+              },
+              "numberOfWebAppCopy":{
+                "value": "[parameters('numberOfWebAppCopy')]"
+              },
+              "documentDBEndpoint":{
+                "value": "[reference('deployDoucmentDBTemplate').outputs.deploydocumentDBEndpointResult.value]"
+              },
+              "documentDBPrimaryKey":{
+                "value": "[listKeys(reference('deployDoucmentDBTemplate').outputs.deploydocumentDBIdResult.value, '2015-04-08').primaryMasterKey]"
+              }
+            }
+            }
+        }
+],
+  "outputs": {
+    "deploydocumentDBEndpointResult": {
+      "type": "string",
+      "value": "[reference('deployDoucmentDBTemplate').outputs.deploydocumentDBEndpointResult.value]"
+    },
+    "deployWebAppResult": {
+      "type": "object",
+      "value": "[reference('deployWebAppTemplate').outputs.deployWebAppResult]"
+    }
+  }
+}
